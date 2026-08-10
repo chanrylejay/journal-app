@@ -359,17 +359,20 @@ function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer }
           value={draft}
           onChange={handleChange}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              handleSend();
-            }
+            /* no keyboard shortcut to commit: the shelf only gets what is sent */
           }}
           placeholder="Start anywhere."
           spellCheck="false"
         />
       </div>
 
-      <div className="send-row">
+      <div className="write-band">
+        <div className="companion">
+          <Cat mood={catMood || phase} />
+          <p className={`whisper ${draft.length === 0 ? "whisper-on" : ""}`}>
+            {justCommitted ? "On the shelf." : "No one else can read this."}
+          </p>
+        </div>
         <button
           className={`send ${draft.trim() ? "on" : ""}`}
           onClick={handleSend}
@@ -378,13 +381,6 @@ function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer }
         >
           ↑
         </button>
-      </div>
-
-      <div className="companion">
-        <Cat mood={catMood || phase} />
-        <p className={`whisper ${draft.length === 0 ? "whisper-on" : ""}`}>
-          {justCommitted ? "On the shelf." : "No one else can read this."}
-        </p>
       </div>
     </div>
   );
@@ -402,6 +398,9 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [showFilingHint, setShowFilingHint] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameText, setRenameText] = useState("");
+  const renameCancel = useRef(false);
 
   const chipRefs = useRef({});
   const holdTimer = useRef(null);
@@ -412,27 +411,78 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
   const scratchCount = state.entries.filter((e) => !e.categoryId).length;
 
   /* ---- pick a card up and file it ----
-     Input-split by design: a mouse picks the card up the instant it moves
-     (Chrome-tab style). A finger has to hold still 220ms first, because a
-     moving finger means scroll. Cards are touch-action: pan-y so the list
-     scrolls; a hold that never moves fires the pick, the pick survives the
-     release, and tapping a category files it. That tap path is the mobile net. ---- */
+     Mouse picks up on 6px of movement (Chrome-tab style). A finger holds
+     220ms first, because a moving finger means scroll. Once a press starts,
+     move/up/cancel live on window, so no element boundary can swallow them
+     mid-drag, and the ghost is positioned straight on its DOM node inside
+     requestAnimationFrame so a drag never re-renders the card list. ---- */
 
   const pressTarget = useRef(null);
   const suppressClick = useRef(false);
   const pressEntry = useRef(null);
   const pressPtr = useRef(null);
   const pressType = useRef(null);
+  const ghostRef = useRef(null);
+  const rafId = useRef(0);
+  const lastPt = useRef({ x: 0, y: 0 });
+  const hoverRef = useRef(null);
+  const [pressing, setPressing] = useState(false);
+
+  useEffect(() => {
+    if (!pressing) return;
+    const onMove = (e) => handlePointerMove(e);
+    const onUp = (e) => handlePointerUp(e);
+    const onCancel = (e) => handlePointerCancel(e);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+    };
+  });
 
   const resetPress = () => {
     clearTimeout(holdTimer.current);
+    cancelAnimationFrame(rafId.current);
+    rafId.current = 0;
+    setPressing(false);
     pressTarget.current = null;
     pressEntry.current = null;
     pressPtr.current = null;
     pressType.current = null;
   };
 
-  useEffect(() => resetPress, []);
+  const moveGhost = (x, y) => {
+    lastPt.current.x = x;
+    lastPt.current.y = y;
+    if (rafId.current) return;
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = 0;
+      const el = ghostRef.current;
+      if (el) {
+        el.style.left = lastPt.current.x + "px";
+        el.style.top = lastPt.current.y + "px";
+      }
+    });
+  };
+
+  const hitTest = (x, y) => {
+    let over = null;
+    for (const [id, node] of Object.entries(chipRefs.current)) {
+      if (!node) continue;
+      const r = node.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        over = id;
+        break;
+      }
+    }
+    if (over !== hoverRef.current) {
+      hoverRef.current = over;
+      setHover(over);
+    }
+  };
 
   const beginPress = (e, entry) => {
     if (e.button != null && e.button !== 0) return;
@@ -444,6 +494,7 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
     pressEntry.current = entry;
     pressTarget.current = e.currentTarget;
     clearTimeout(holdTimer.current);
+    setPressing(true);
     if (e.pointerType !== "mouse") {
       holdTimer.current = setTimeout(() => {
         suppressClick.current = true;
@@ -481,12 +532,13 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
     const dx = Math.abs(e.clientX - startPt.current.x);
     const dy = Math.abs(e.clientY - startPt.current.y);
     if (!liftedId) {
-      if (e.pointerType === "mouse") {
+      if (pressType.current === "mouse") {
         const entry = pressEntry.current;
         if (entry && (dx > 6 || dy > 6)) {
           suppressClick.current = true;
           setLiftedId(entry.id);
-          setDrag({ id: entry.id, text: entry.text, x: e.clientX, y: e.clientY });
+          setDrag({ id: entry.id, text: entry.text });
+          moveGhost(e.clientX, e.clientY);
         }
       } else {
         /* a moving finger is a scroll: drop the hold before it can fire */
@@ -494,23 +546,14 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
       }
       return;
     }
-    if (!drag && e.buttons) {
-      const entry = pressEntry.current || state.entries.find((x) => x.id === liftedId);
-      pressTarget.current?.setPointerCapture?.(e.pointerId);
-      setDrag({ id: liftedId, text: entry?.text || "", x: e.clientX, y: e.clientY });
-    }
     if (drag) {
-      e.preventDefault();
-      setDrag((d) => ({ ...d, x: e.clientX, y: e.clientY }));
-      let over = null;
-      for (const [id, node] of Object.entries(chipRefs.current)) {
-        if (!node) continue;
-        const r = node.getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
-          over = id;
-        }
-      }
-      setHover(over);
+      moveGhost(e.clientX, e.clientY);
+      hitTest(e.clientX, e.clientY);
+    } else if (e.buttons) {
+      pressTarget.current?.setPointerCapture?.(e.pointerId);
+      setDrag({ id: liftedId, text: pressEntry.current?.text || "" });
+      moveGhost(e.clientX, e.clientY);
+      hitTest(e.clientX, e.clientY);
     }
   };
 
@@ -555,7 +598,7 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
   useEffect(() => {
     (async () => {
       if (await seenFiling()) return;
-      if (state.entries.length > 0 && state.categories.length > 0) setShowFilingHint(true);
+      if (state.entries.some((e) => !e.categoryId) && state.categories.length > 0) setShowFilingHint(true);
     })();
   }, []);
 
@@ -599,26 +642,61 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
   };
 
   const activeCat = state.categories.find((c) => c.id === filter);
+  const commitRename = () => {
+    if (renameCancel.current) {
+      renameCancel.current = false;
+      setRenaming(false);
+      return;
+    }
+    const name = renameText.trim();
+    const cat = state.categories.find((c) => c.id === filter);
+    if (cat && name && name !== cat.name) {
+      const next = state.categories.map((c) => (c.id === cat.id ? { ...c, name } : c));
+      setState((s) => ({ ...s, categories: next }));
+      saveCategories(next);
+    }
+    setRenaming(false);
+  };
 
   return (
     <div
       className="shelf"
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
       onClick={(e) => {
         if (liftedId && !e.target.closest(".card") && !e.target.closest(".chip")) clearLift();
       }}
     >
       <div className="shelf-head">
-        <h2>
-          {query.trim()
-            ? "Results"
-            : filter === null
-              ? "Scratchpad"
-              : activeCat?.name}
-        </h2>
+        {query.trim() ? (
+          <h2>Results</h2>
+        ) : filter === null ? (
+          <h2>Scratchpad</h2>
+        ) : renaming ? (
+          <input
+            className="rename"
+            value={renameText}
+            onChange={(e) => setRenameText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitRename();
+              } else if (e.key === "Escape") {
+                renameCancel.current = true;
+                setRenaming(false);
+              }
+            }}
+            onBlur={commitRename}
+            autoFocus
+          />
+        ) : (
+          <h2 className="editable" onClick={() => { setRenameText(activeCat?.name || ""); setRenaming(true); }}>
+            {activeCat?.name}
+          </h2>
+        )}
         <span className="count">{visible.length}</span>
+        <div className="shelf-utils">
+          <button onClick={onExport}>Download all</button>
+          <button onClick={() => fileRef.current?.click()}>Restore</button>
+        </div>
       </div>
 
       {showFilingHint && <p className="micro">Hold a card to file it.</p>}
@@ -777,15 +855,20 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
       </div>
 
       {drag && (
-        <div className="ghost" style={{ left: drag.x, top: drag.y }}>
+        <div
+          ref={(n) => {
+            ghostRef.current = n;
+            if (n) {
+              n.style.left = lastPt.current.x + "px";
+              n.style.top = lastPt.current.y + "px";
+            }
+          }}
+          className="ghost"
+        >
           {(drag.text || "").slice(0, 60) || "—"}
         </div>
       )}
 
-      <div className="util">
-        <button onClick={onExport}>Download</button>
-        <button onClick={() => fileRef.current?.click()}>Restore</button>
-      </div>
       <input
         ref={fileRef}
         type="file"
@@ -864,28 +947,30 @@ function Reader({ entry, index, listLen, onSave, onNewer, onOlder }) {
         })}
       </p>
 
-      {editing ? (
-        <textarea
-          ref={ref}
-          className="pad pad-read"
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.preventDefault();
-              setEditing(false);
-            } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              save();
-            }
-          }}
-          spellCheck="false"
-        />
-      ) : (
-        <p className="reader-body" onClick={startEdit}>
-          {entry.text}
-        </p>
-      )}
+      <div className="pad-shell">
+        {editing ? (
+          <textarea
+            ref={ref}
+            className="pad pad-read"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setEditing(false);
+              } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                save();
+              }
+            }}
+            spellCheck="false"
+          />
+        ) : (
+          <p className="reader-body" onClick={startEdit}>
+            {entry.text}
+          </p>
+        )}
+      </div>
 
       {editing && (
         <div className="send-row">
@@ -927,6 +1012,7 @@ export default function App() {
   const [filter, setFilter] = useState(null);
   const [query, setQuery] = useState("");
   const [theme, setThemeState] = useState(null);
+  const [osDark, setOsDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
   const draftTimer = useRef(null);
   const committing = useRef(false);
 
@@ -945,6 +1031,12 @@ export default function App() {
       setDraft(restored);
       setReady(true);
     })();
+  }, []);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e) => setOsDark(e.matches);
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
   const commitDraft = async () => {
@@ -995,6 +1087,7 @@ export default function App() {
       if (document.hidden) flushRef.current();
     };
     document.addEventListener("visibilitychange", onHide);
+    /* pagehide deliberately has no removal: iOS may never fire visibilitychange, and the listener dies with the page anyway */
     window.addEventListener("pagehide", () => flushRef.current());
     return () => {
       document.removeEventListener("visibilitychange", onHide);
@@ -1069,7 +1162,7 @@ export default function App() {
       ? "dark"
       : theme === "light"
         ? "light"
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
+        : osDark
           ? "dark"
           : "light";
   const themeLabel = currentShown === "dark" ? "Light mode" : "Dark mode";
@@ -1078,24 +1171,31 @@ export default function App() {
     setThemeState(next);
     setTheme(next);
   };
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("theme-dark", currentShown === "dark");
+    root.classList.toggle("theme-light", currentShown === "light");
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", currentShown === "dark" ? "#1B1926" : "#F2F0F7");
+  }, [currentShown]);
 
   return (
-    <div className={`app ${theme === "dark" ? "theme-dark" : theme === "light" ? "theme-light" : ""}`}>
+    <div className="app">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
 
-        .app {
+        :root {
           --paper:  #F2F0F7;
           --paper-fade: rgba(242,240,247,0);
           --raised: #FAF9FD;
           --ink:    #33304A;
           --soft:   #6E6A87;
-          --faint:  #A4A0BB;
+          --faint:  #8B87A1;
+          --faint-read: #6E6A87;
           --edge:   #E3DFEE;
           --rule:   #DCD7EA;
-          --accent: #6E6BB8;
+          --accent: #6562AC;
           --accent-hi: #5F5CAB;
-          --accent-glow: rgba(110,107,184,.3);
+          --accent-glow: rgba(101,98,172,.3);
           --danger: #A96A6A;
           --danger-bg: #EFE9F0;
           --warn-fg: #8A5A5A;
@@ -1115,8 +1215,9 @@ export default function App() {
           --on-accent: #FFFFFF;
 
           --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-          --serif: "Newsreader", "Iowan Old Style", Palatino, Georgia, serif;
-
+          --serif: "Literata", "Iowan Old Style", Palatino, Georgia, serif;
+        }
+        .app {
           background: var(--paper);
           color: var(--ink);
           font-family: var(--sans);
@@ -1128,13 +1229,14 @@ export default function App() {
           box-sizing: border-box;
         }
         @media (prefers-color-scheme: dark) {
-          .app:not(.theme-light) {
+          html:not(.theme-light) {
             --paper:  #1B1926;
             --paper-fade: rgba(27,25,38,0);
             --raised: #232131;
             --ink:    #C7C2D6;
             --soft:   #A9A3BE;
             --faint:  #6F6987;
+            --faint-read: #8C86A0;
             --edge:   #322F42;
             --rule:   #3A3650;
             --accent: #9B98E0;
@@ -1158,14 +1260,17 @@ export default function App() {
             --cat-shadow-op: 0.32;
             --on-accent: #1B1926;
           }
+          html:not(.theme-light) .pad,
+          html:not(.theme-light) .reader-body { font-weight: 450; }
         }
-        .app.theme-dark {
+        html.theme-dark {
           --paper:  #1B1926;
           --paper-fade: rgba(27,25,38,0);
           --raised: #232131;
           --ink:    #C7C2D6;
           --soft:   #A9A3BE;
           --faint:  #6F6987;
+          --faint-read: #8C86A0;
           --edge:   #322F42;
           --rule:   #3A3650;
           --accent: #9B98E0;
@@ -1191,7 +1296,7 @@ export default function App() {
         }
 
         .app *, .app *::before, .app *::after { box-sizing: border-box; }
-        html, body { overscroll-behavior-y: contain; }
+        html, body { margin: 0; padding: 0; background: var(--paper); overscroll-behavior-y: contain; }
 
         /* ---- nav: two words, and they stay out of the way ---- */
         .nav {
@@ -1239,7 +1344,7 @@ export default function App() {
           font-family: var(--serif); font-size: 19px; line-height: 32px;
           overflow: hidden;
         }
-        .pad::placeholder { color: var(--faint); font-style: italic; }
+        .pad::placeholder { color: var(--faint-read); font-style: italic; }
         .pad-read { font-size: 18.5px; line-height: 1.85; }
 
         .send-row { display: flex; justify-content: flex-end; height: 44px; margin-top: 10px; }
@@ -1253,10 +1358,18 @@ export default function App() {
         .send.on { opacity: 1; transform: none; pointer-events: auto; }
         .send:hover { background: var(--accent-hi); }
         .send:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+        .write-band {
+          position: sticky; bottom: 0; z-index: 5;
+          display: flex; flex-direction: column; align-items: center;
+          padding: 18px 0 12px; margin-top: 22px;
+          background: linear-gradient(to top, var(--paper) 55%, var(--paper-fade));
+        }
+        .write-band .send {
+          position: absolute; right: 0; top: 50%; margin-top: -20px;
+        }
 
         .companion {
           display: flex; flex-direction: column; align-items: center;
-          margin-top: 40px;
         }
         .whisper {
           font-size: 12.5px; color: var(--faint); margin: 4px 0 0;
@@ -1352,17 +1465,31 @@ export default function App() {
         .shelf-head h2 {
           font-family: var(--serif); font-weight: 400; font-size: 24px; margin: 0;
         }
+        .shelf-head h2.editable { cursor: pointer; }
+        .shelf-head h2.editable:hover { color: var(--soft); }
+        .shelf-utils { margin-left: auto; display: flex; gap: 18px; align-items: baseline; }
+        .shelf-utils button {
+          background: none; border: 0; padding: 14px 2px; margin: -14px 0; cursor: pointer;
+          font: inherit; font-size: 12.5px; color: var(--faint); white-space: nowrap;
+        }
+        .shelf-utils button:hover { color: var(--soft); }
+        .shelf-utils button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+        .rename {
+          font-family: var(--serif); font-size: 24px; font-weight: 400;
+          background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+          outline: none; color: var(--ink); padding: 0; width: 100%;
+        }
         .count { font-size: 12px; color: var(--faint); }
         .search {
           width: 100%; background: none; border: 0; border-bottom: 1px solid var(--rule);
           outline: none; font: inherit; font-size: 14px; color: var(--ink);
           padding: 8px 0 10px; margin-bottom: 20px;
         }
-        .search::placeholder { color: var(--faint); }
+        .search::placeholder { color: var(--faint-read); }
         .search:focus { border-bottom-color: var(--accent); }
         .empty {
           font-family: var(--serif); font-style: italic; font-size: 16px;
-          color: var(--faint); line-height: 1.7; max-width: 30ch; margin: 40px 0;
+          color: var(--faint-read); line-height: 1.7; max-width: 30ch; margin: 40px 0;
         }
 
         .cards { display: flex; flex-direction: column; gap: 10px; }
@@ -1375,7 +1502,7 @@ export default function App() {
         .card-text {
           font-family: var(--serif); font-size: 15.5px; line-height: 1.65; margin: 0;
           color: var(--soft);
-          display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .x {
           position: absolute; top: 11px; right: 11px; width: 26px; height: 26px;
@@ -1434,22 +1561,16 @@ export default function App() {
         }
 
         /* ---- reader ---- */
-        .util { display: flex; gap: 20px; margin-top: 30px; }
-        .util button {
-          background: none; border: 0; padding: 14px 4px; margin: -14px 0; cursor: pointer;
-          font: inherit; font-size: 13px; color: var(--faint);
-        }
-        .util button:hover { color: var(--soft); }
+        /* util row moved into the shelf header (A3) */
         .reader-body {
           font-family: var(--serif); font-size: 18.5px; line-height: 1.85;
           white-space: pre-wrap; margin: 0; cursor: pointer;
         }
-        .app.theme-dark .pad, .app:not(.theme-light) .pad,
-        .app.theme-dark .reader-body, .app:not(.theme-light) .reader-body { font-weight: 500; }
+        html.theme-dark .pad, html.theme-dark .reader-body { font-weight: 450; }
         .pager { display: flex; gap: 18px; margin-top: 36px; }
         .pager button {
           background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px;
-          color: var(--faint); padding: 14px 4px; margin: -14px 0; transition: color 150ms ease;
+          color: var(--faint-read); padding: 14px 4px; margin: -14px 0; transition: color 150ms ease;
         }
         .pager button:hover:not(:disabled) { color: var(--soft); }
         .pager button:disabled { opacity: .3; cursor: default; }
