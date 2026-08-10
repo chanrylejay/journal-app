@@ -1,4 +1,4 @@
-// Captures screenshots for Chan's eyes. Run: node scripts/shots.mjs
+// Captures v1.5 screenshots for Chan's eyes. Run: node scripts/shots.mjs
 import { createRequire } from "module";
 import fs from "fs";
 const require = createRequire(import.meta.url);
@@ -23,7 +23,7 @@ await p.evaluate(() => new Promise((res) => {
     const tx = db.transaction("kv", "readwrite");
     const st = tx.objectStore("kv");
     const now = Date.now();
-    for (let i = 1; i <= 5; i++) st.put({ id: "s" + i, text: "A short entry about the day and the small things that mattered. ".repeat(3), createdAt: now - i * 3600000, updatedAt: now - i * 3600000, categoryId: null }, "entry:s" + i);
+    for (let i = 1; i <= 12; i++) st.put({ id: "s" + i, text: "A short entry about the day and the small things that mattered. ".repeat(3), createdAt: now - i * 3600000, updatedAt: now - i * 3600000, categoryId: null }, "entry:s" + i);
     st.put([{ id: "c1", name: "Heavy days", color: "#8886C9" }, { id: "c2", name: "Ideas", color: "#8FA98C" }], "categories");
     tx.oncomplete = () => res("ok");
     tx.onerror = () => res("txerr");
@@ -32,25 +32,28 @@ await p.evaluate(() => new Promise((res) => {
 await p.goto(APP);
 await p.waitForTimeout(900);
 
-// write light (short entry: band below text)
-await p.screenshot({ path: ".shots/v14-write-light.png" });
-// write light long entry (band sticky, cat + send visible)
-const long = "A long journal line that keeps going and going. ".repeat(55);
+// long draft, scroll to bottom: band solid, no text bleed
+const long = "A long journal line that keeps going and going. ".repeat(70);
 await p.locator(".pad").fill(long);
 await p.waitForTimeout(400);
-await p.screenshot({ path: ".shots/v14-write-long.png" });
+await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await p.waitForTimeout(300);
+await p.screenshot({ path: ".shots/v15-write-long.png" });
 // dark long
 await p.locator(".nav .theme-btn").click();
 await p.waitForTimeout(500);
-await p.screenshot({ path: ".shots/v14-write-long-dark.png" });
-// shelf (header utils)
+await p.screenshot({ path: ".shots/v15-write-long-dark.png" });
+await p.locator(".nav .theme-btn").click();
+await p.waitForTimeout(400);
+
+// shelf light (header utils, new contrast ramp)
 await p.getByRole("button", { name: "shelf", exact: true }).click();
 await p.waitForTimeout(500);
-await p.screenshot({ path: ".shots/v14-shelf-light.png", fullPage: true });
-// reader (with margin line)
-await p.locator("article").first().click();
+await p.screenshot({ path: ".shots/v15-shelf-light.png", fullPage: true });
+// category filter: utils hidden
+await p.getByRole("button", { name: /Ideas/ }).click();
 await p.waitForTimeout(400);
-await p.screenshot({ path: ".shots/v14-reader.png" });
+await p.screenshot({ path: ".shots/v15-shelf-filter.png" });
 
 await browser.close();
-console.log("shots written to .shots/v14-*.png");
+console.log("shots written to .shots/v15-*.png");

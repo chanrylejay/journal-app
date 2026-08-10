@@ -693,10 +693,12 @@ function ShelfView({ state, setState, onOpen, onExport, saveEntry, saveCategorie
           </h2>
         )}
         <span className="count">{visible.length}</span>
-        <div className="shelf-utils">
-          <button onClick={onExport}>Download all</button>
-          <button onClick={() => fileRef.current?.click()}>Restore</button>
-        </div>
+        {!query.trim() && filter === null && (
+          <div className="shelf-utils">
+            <button onClick={onExport}>Download all</button>
+            <button onClick={() => fileRef.current?.click()}>Restore</button>
+          </div>
+        )}
       </div>
 
       {showFilingHint && <p className="micro">Hold a card to file it.</p>}
@@ -1175,9 +1177,10 @@ export default function App() {
     const root = document.documentElement;
     root.classList.toggle("theme-dark", currentShown === "dark");
     root.classList.toggle("theme-light", currentShown === "light");
+    root.classList.toggle("write-scroll", view === "write");
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", currentShown === "dark" ? "#1B1926" : "#F2F0F7");
-  }, [currentShown]);
+  }, [currentShown, view]);
 
   return (
     <div className="app">
@@ -1188,9 +1191,8 @@ export default function App() {
           --paper-fade: rgba(242,240,247,0);
           --raised: #FAF9FD;
           --ink:    #33304A;
-          --soft:   #6E6A87;
-          --faint:  #8B87A1;
-          --faint-read: #6E6A87;
+          --soft:   #574B72;
+          --faint:  #6E6A87;
           --edge:   #E3DFEE;
           --rule:   #DCD7EA;
           --accent: #6562AC;
@@ -1235,8 +1237,7 @@ export default function App() {
             --raised: #232131;
             --ink:    #C7C2D6;
             --soft:   #A9A3BE;
-            --faint:  #6F6987;
-            --faint-read: #8C86A0;
+            --faint:  #8C86A0;
             --edge:   #322F42;
             --rule:   #3A3650;
             --accent: #9B98E0;
@@ -1269,8 +1270,7 @@ export default function App() {
           --raised: #232131;
           --ink:    #C7C2D6;
           --soft:   #A9A3BE;
-          --faint:  #6F6987;
-          --faint-read: #8C86A0;
+          --faint:  #8C86A0;
           --edge:   #322F42;
           --rule:   #3A3650;
           --accent: #9B98E0;
@@ -1344,7 +1344,7 @@ export default function App() {
           font-family: var(--serif); font-size: 19px; line-height: 32px;
           overflow: hidden;
         }
-        .pad::placeholder { color: var(--faint-read); font-style: italic; }
+        .pad::placeholder { color: var(--faint); font-style: italic; }
         .pad-read { font-size: 18.5px; line-height: 1.85; }
 
         .send-row { display: flex; justify-content: flex-end; height: 44px; margin-top: 10px; }
@@ -1362,8 +1362,9 @@ export default function App() {
           position: sticky; bottom: 0; z-index: 5;
           display: flex; flex-direction: column; align-items: center;
           padding: 18px 0 12px; margin-top: 22px;
-          background: linear-gradient(to top, var(--paper) 55%, var(--paper-fade));
+          background: linear-gradient(to top, var(--paper) 95%, var(--paper-fade));
         }
+        html.write-scroll { scroll-padding-bottom: 220px; }
         .write-band .send {
           position: absolute; right: 0; top: 50%; margin-top: -20px;
         }
@@ -1485,11 +1486,11 @@ export default function App() {
           outline: none; font: inherit; font-size: 14px; color: var(--ink);
           padding: 8px 0 10px; margin-bottom: 20px;
         }
-        .search::placeholder { color: var(--faint-read); }
+        .search::placeholder { color: var(--faint); }
         .search:focus { border-bottom-color: var(--accent); }
         .empty {
           font-family: var(--serif); font-style: italic; font-size: 16px;
-          color: var(--faint-read); line-height: 1.7; max-width: 30ch; margin: 40px 0;
+          color: var(--faint); line-height: 1.7; max-width: 30ch; margin: 40px 0;
         }
 
         .cards { display: flex; flex-direction: column; gap: 10px; }
@@ -1570,7 +1571,7 @@ export default function App() {
         .pager { display: flex; gap: 18px; margin-top: 36px; }
         .pager button {
           background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px;
-          color: var(--faint-read); padding: 14px 4px; margin: -14px 0; transition: color 150ms ease;
+          color: var(--faint); padding: 14px 4px; margin: -14px 0; transition: color 150ms ease;
         }
         .pager button:hover:not(:disabled) { color: var(--soft); }
         .pager button:disabled { opacity: .3; cursor: default; }
