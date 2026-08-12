@@ -247,7 +247,10 @@ function buildShelf(shelfW) {
   const rightmost = rightBooks.length ? rightBooks[0].x + rightBooks[0].w + 2 + 4.2 : shelfW;
   const off = (shelfW - (rightmost - leftmost)) / 2 - leftmost;
 
-  const baseline = 96;
+  const PAD = 22; /* top and bottom margin, balanced */
+  const hcat = catW * (150 / 160);
+  const baseline = PAD + ((147 - 14) / 150) * hcat; /* ears PAD below the top, shelf line PAD above the bottom */
+  const shelfH = Math.round(baseline + PAD + 2);
   const parts = [];
   for (const b of placed) {
     const lean = b.x < catX ? b.month.lean : -b.month.lean;
@@ -272,11 +275,10 @@ function buildShelf(shelfW) {
   parts.push(`<line x1="${lineL}" x2="${lineR}" y1="${baseline + 0.5}" y2="${baseline + 0.5}" stroke="var(--out)" stroke-width="1" opacity="0.24"/>`);
 
   /* the cat, dead centre, feet on the shelf line */
-  const hcat = catW * (150 / 160);
   const catY = baseline - (147 / 150) * hcat;
   parts.push(`<svg x="${catX + off - catW / 2}" y="${catY}" width="${catW}" height="${hcat}" viewBox="0 0 160 150" aria-hidden="true">${catInner({ eye: "open", id: 100 })}</svg>`);
 
-  return `<svg width="${shelfW}" height="${baseline + 24}" viewBox="0 0 ${shelfW} ${baseline + 24}" aria-hidden="true">${parts.join("")}</svg>`;
+  return `<svg width="${shelfW}" height="${shelfH}" viewBox="0 0 ${shelfW} ${shelfH}" aria-hidden="true">${parts.join("")}</svg>`;
 }
 
 /* build the shelf to span exactly from the first cat to the seventh */
