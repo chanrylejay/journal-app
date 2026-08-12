@@ -35,18 +35,11 @@
     font-family: var(--sans);
     color: var(--ink);
     padding: 48px 48px 56px;
-    width: 1580px; /* one clean screenshot */
   }
   header { text-align: center; margin-bottom: 44px; }
   header .title { font-family: "Literata", Georgia, serif; font-size: 30px; margin: 0 0 8px; }
   header .sub { color: var(--soft); font-size: 15px; margin: 0; }
-  section { margin-bottom: 56px; }
-  section h2 {
-    font-family: "Literata", Georgia, serif;
-    font-weight: 400; font-size: 20px; margin: 0 0 20px;
-  }
-  section h2 .note { font-family: var(--sans); font-size: 12px; color: var(--faint); font-weight: 400; margin-left: 12px; }
-  .faces { display: flex; gap: 34px; justify-content: center; }
+  .faces { display: flex; gap: 34px; justify-content: center; margin: 0 auto 56px; }
   .face { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .face .name { font-size: 12px; color: var(--soft); letter-spacing: 0.04em; }
   .face .state { font-size: 11px; color: var(--faint); margin-top: -4px; }
@@ -55,6 +48,7 @@
     border: 1px solid var(--edge);
     border-radius: 16px;
     padding: 20px 12px 16px;
+    margin: 0 auto;
   }
   .shelf-wrap svg { display: block; margin: 0 auto; }
   .shelf-key { display: flex; gap: 18px; justify-content: center; margin-top: 16px; font-size: 12px; color: var(--faint); }
@@ -68,16 +62,9 @@
   <p class="sub">a small journal for loud days — a cat, a month shelf, nothing leaves the browser</p>
 </header>
 
-<section>
-  <h2>The cat<span class="note">seven faces, one warm thing on the page</span></h2>
-  <div class="faces" id="faces"></div>
-</section>
-
-<section>
-  <h2>The month shelf<span class="note">five years in — the cat keeps it company</span></h2>
-  <div class="shelf-wrap" id="shelf"></div>
-  <div class="shelf-key"><span><span class="dot" style="background:#8492A8"></span>a month</span><span><span class="dot" style="background:#9585AB"></span>a heavy month</span><span><span class="dot" style="background:#8A8DAB"></span>filed by category</span></div>
-</section>
+<div class="faces" id="faces"></div>
+<div class="shelf-wrap" id="shelf"></div>
+<div class="shelf-key"><span><span class="dot" style="background:#8492A8"></span>a month</span><span><span class="dot" style="background:#9585AB"></span>a heavy month</span><span><span class="dot" style="background:#8A8DAB"></span>filed by category</span></div>
 
 <script>
 /* ------------------------------------------------------------------ */
@@ -98,7 +85,6 @@ function eyes(mode) {
   return one(L) + one(R);
 }
 
-/* the cat's body — reusable inside a <svg> (a face card or embedded in the shelf) */
 function catInner({ eye = "open", poses = {}, zzz = false, id = 0 }) {
   const g = (n) => (poses[n] ? ` transform="${poses[n]}"` : "");
   return `<defs>
@@ -179,7 +165,8 @@ document.getElementById("faces").innerHTML = FACES.map((f, i) =>
 ).join("");
 
 /* ------------------------------------------------------------------ */
-/*  The shelf — five years, filled, the cat sitting in the middle      */
+/*  The shelf — five years, filled, the cat centred in the middle.
+     Its margins align with the first and seventh cat of the row above. */
 /* ------------------------------------------------------------------ */
 
 const LIGHT = ["#8492A8", "#AE8B98", "#8CA08E", "#9585AB", "#7A929C", "#B2949B", "#829E96", "#8A8DAB", "#A0808F"];
@@ -210,13 +197,13 @@ function fiveYears() {
   return out;
 }
 
-function buildShelf() {
+function buildShelf(shelfW) {
   const months = fiveYears();
-  const catW = 120;                 /* the cat sits here, feet on the shelf line */
-  const catX = 300;
-  const clearZone = 46;
+  const catW = 132;
+  const catX = shelfW / 2;               /* the cat sits dead centre */
+  const clearZone = 44;
   const tuckCap = 29.5;
-  const rightCap = 1520;
+  const LEFT_EXT = 10.8, RIGHT_EXT = 6.2; /* bookend footprints */
   const books = [];
   for (const m of months) {
     if (m.count <= 0.001) continue;
@@ -226,31 +213,26 @@ function buildShelf() {
   const bookHeight = (b) => (b.v.kind === "mother" ? b.month.spineH : b.month.spineH * 0.66) * b.v.f;
   const gapBetween = (a, b) => { const d = b.month.gi - a.month.gi; return d === 0 ? 1.8 : d === 1 ? 4.5 : 13; };
   const tuck = (w) => Math.min(tuckCap, Math.max(0, w - 42) * 0.26);
+  const widthOf = (list, s) => { let w = 0; for (let i = 0; i < list.length; i++) { w += bookWidth(list[i]) * s; if (i < list.length - 1) w += gapBetween(list[i], list[i + 1]) * s; } return w; };
 
-  let chosen = null, working = books;
-  while (!chosen && working.length > 0) {
-    for (let s = 1; s >= 0.66; s -= 0.05) {
-      const wOf = (list) => { let w = 0; for (let i = 0; i < list.length; i++) { w += bookWidth(list[i]) * s; if (i < list.length - 1) w += gapBetween(list[i], list[i + 1]) * s; } return w; };
-      let best = null;
-      for (let cut = 0; cut <= working.length; cut++) {
-        const left = working.slice(0, cut), right = working.slice(cut);
-        const lw = wOf(left), rw = wOf(right);
-        const leftInner = catX - clearZone + tuck(lw);
-        const rightInner = catX + clearZone - tuck(rw);
-        if (left.length && leftInner - lw - 10.8 < 0) continue;
-        if (right.length && rightInner + rw + 6.2 > rightCap) continue;
-        const score = Math.abs(lw - rw) + (right.length === 0 ? 1000 : 0);
-        if (!best || score < best.score) best = { cut, s, lw, rw, score };
-      }
-      if (best) { chosen = best; break; }
-    }
-    if (!chosen) working = working.slice(1);
+  /* balance the split around the cat; a single shelf lands on the right */
+  let best = null;
+  for (let cut = 0; cut <= books.length; cut++) {
+    const left = books.slice(0, cut), right = books.slice(cut);
+    const lw = widthOf(left, 1), rw = widthOf(right, 1);
+    const score = Math.abs(lw - rw) + (right.length === 0 ? 1000 : 0);
+    if (!best || score < best.score) best = { cut, score };
   }
-  if (!chosen) return "";
+  const leftList = books.slice(0, best.cut), rightList = books.slice(best.cut);
+  const lw1 = widthOf(leftList, 1), rw1 = widthOf(rightList, 1);
 
-  const scale = chosen.s;
-  const leftList = working.slice(0, chosen.cut), rightList = working.slice(chosen.cut);
-  const leftInner = catX - clearZone + tuck(chosen.lw), rightInner = catX + clearZone - tuck(chosen.rw);
+  /* scale so the whole extent (books + cat's clear zone + bookends) fills the faces row width */
+  const extent1 = lw1 + rw1 + (clearZone - tuck(lw1)) + (clearZone - tuck(rw1)) + LEFT_EXT + RIGHT_EXT;
+  const scale = Math.max(0.55, Math.min(1, shelfW / extent1));
+  const lw = lw1 * scale, rw = rw1 * scale;
+  const leftInner = catX - clearZone + tuck(lw);
+  const rightInner = catX + clearZone - tuck(rw);
+
   const placed = [];
   let cx = leftInner;
   for (let i = leftList.length - 1; i >= 0; i--) { const b = leftList[i]; const w = bookWidth(b) * scale; const x = cx - w; placed.push({ ...b, x, w, h: bookHeight(b) * scale }); cx = x - (i > 0 ? gapBetween(leftList[i - 1], leftList[i]) * scale : 0); }
@@ -258,16 +240,14 @@ function buildShelf() {
   for (let i = 0; i < rightList.length; i++) { const b = rightList[i]; const w = bookWidth(b) * scale; placed.push({ ...b, x: cx, w, h: bookHeight(b) * scale }); cx += w + (i < rightList.length - 1 ? gapBetween(rightList[i], rightList[i + 1]) * scale : 0); }
   placed.sort((a, b) => a.x - b.x);
 
-  const baseline = 96;
-  const leftBooks = placed.filter((p) => p.x < catX);
-  const rightBooks = placed.filter((p) => p.x >= catX);
-  const leftBookendX = leftBooks.length ? leftBooks[0].x - 6.6 : null;
-  const rightBookendX = rightBooks.length ? rightBooks[rightBooks.length - 1].x + rightBooks[rightBooks.length - 1].w + 2 : null;
-  const extentL = leftBookendX != null ? leftBookendX - 4.2 : placed[0].x;
-  const extentR = rightBookendX != null ? rightBookendX + 4.2 : placed[placed.length - 1].x + placed[placed.length - 1].w;
-  const off = 20 - extentL;
-  const W = extentR - extentL + 40;
+  /* shift so the left bookend lands at 0 (the first cat) and the right at shelfW (the 7th) */
+  const leftBooks = placed.filter((p) => p.x < catX).sort((a, b) => a.x - b.x);
+  const rightBooks = placed.filter((p) => p.x >= catX).sort((a, b) => b.x - a.x);
+  const leftmost = leftBooks.length ? leftBooks[0].x - 2 - 4.6 - 4.2 : 0;
+  const rightmost = rightBooks.length ? rightBooks[0].x + rightBooks[0].w + 2 + 4.2 : shelfW;
+  const off = (shelfW - (rightmost - leftmost)) / 2 - leftmost;
 
+  const baseline = 96;
   const parts = [];
   for (const b of placed) {
     const lean = b.x < catX ? b.month.lean : -b.month.lean;
@@ -279,19 +259,31 @@ function buildShelf() {
       <line x1="${-b.w / 2}" y1="-5.5" x2="${b.w / 2}" y2="-5.5" stroke="#fff" opacity="0.16"/>
     </g>`);
   }
-  if (leftBookendX != null) parts.push(`<g transform="translate(${leftBookendX + off}, ${baseline})"><rect x="0" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-4.2" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
-  if (rightBookendX != null) parts.push(`<g transform="translate(${rightBookendX + off}, ${baseline})"><rect x="-4.6" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-8.8" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
-  parts.push(`<line x1="${(leftBookendX != null ? leftBookendX - 4.2 : extentL) + off}" x2="${(rightBookendX != null ? rightBookendX + 4.2 : extentR) + off}" y1="${baseline + 0.5}" y2="${baseline + 0.5}" stroke="var(--out)" stroke-width="1" opacity="0.24"/>`);
+  if (leftBooks.length) {
+    const bx = leftBooks[0].x + off - 2 - 4.6;
+    parts.push(`<g transform="translate(${bx}, ${baseline})"><rect x="0" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-4.2" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
+  }
+  if (rightBooks.length) {
+    const bx = rightBooks[0].x + rightBooks[0].w + off + 2;
+    parts.push(`<g transform="translate(${bx}, ${baseline})"><rect x="-4.6" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-8.8" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
+  }
+  const lineL = leftBooks.length ? leftBooks[0].x + off - 6.8 : 0;
+  const lineR = rightBooks.length ? rightBooks[0].x + rightBooks[0].w + off + 6.2 : shelfW;
+  parts.push(`<line x1="${lineL}" x2="${lineR}" y1="${baseline + 0.5}" y2="${baseline + 0.5}" stroke="var(--out)" stroke-width="1" opacity="0.24"/>`);
 
-  /* the cat, sitting in the gap, feet on the shelf line */
+  /* the cat, dead centre, feet on the shelf line */
   const hcat = catW * (150 / 160);
   const catY = baseline - (147 / 150) * hcat;
   parts.push(`<svg x="${catX + off - catW / 2}" y="${catY}" width="${catW}" height="${hcat}" viewBox="0 0 160 150" aria-hidden="true">${catInner({ eye: "open", id: 100 })}</svg>`);
 
-  return `<svg width="${W}" height="${baseline + 24}" viewBox="0 0 ${W} ${baseline + 24}" aria-hidden="true">${parts.join("")}</svg>`;
+  return `<svg width="${shelfW}" height="${baseline + 24}" viewBox="0 0 ${shelfW} ${baseline + 24}" aria-hidden="true">${parts.join("")}</svg>`;
 }
 
-document.getElementById("shelf").innerHTML = buildShelf();
+/* build the shelf to span exactly from the first cat to the seventh */
+const faceRects = [...document.querySelectorAll(".face")].map((f) => f.getBoundingClientRect());
+const shelfW = Math.round(faceRects[faceRects.length - 1].right - faceRects[0].left);
+document.getElementById("shelf").style.width = shelfW + "px";
+document.getElementById("shelf").innerHTML = buildShelf(shelfW);
 </script>
 </body>
 </html>
