@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { loadAll, saveEntry, deleteEntry, saveCategories, migrateFromLocalStorage, exportAll, probeStorage, saveDraft, loadDraft, clearDraft, importBackup, seenIntro, markIntroSeen, getTheme, setTheme, seenFiling, markFilingSeen } from "./storage";
+import Shelf from "./Shelf.jsx";
 
 /* ------------------------------------------------------------------ */
 /*  Dusk — a small journal for loud days                               */
@@ -293,7 +294,7 @@ function Cat({ mood = "idle", size = 118 }) {
 /*  Write                                                              */
 /* ------------------------------------------------------------------ */
 
-function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer }) {
+function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer, entries, categories, theme }) {
   const ref = useRef(null);
   const [phase, setPhase] = useState("idle");
   const [justCommitted, setJustCommitted] = useState(false);
@@ -327,6 +328,26 @@ function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer }
   }, []);
 
   useEffect(autoGrow, [draft, autoGrow]);
+
+  /* measure the band, cat and send once and on resize — the shelf derives all
+     its geometry from these boxes so it adapts instead of assuming numbers */
+  const [boxes, setBoxes] = useState(null);
+  useEffect(() => {
+    const measure = () => {
+      const band = document.querySelector(".write-band");
+      const cat = document.querySelector("svg.cat");
+      const send = document.querySelector(".send");
+      if (!band || !cat || !send) return;
+      const r = (el) => {
+        const b = el.getBoundingClientRect();
+        return { left: b.left, top: b.top, width: b.width, height: b.height };
+      };
+      setBoxes({ bandBox: r(band), catBox: r(cat), sendBox: r(send) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   const handleChange = (e) => {
     const value = e.target.value;
@@ -367,6 +388,7 @@ function WriteView({ draft, setDraft, onCommit, catMood, saveDraft, draftTimer }
       </div>
 
       <div className="write-band">
+        <Shelf entries={entries} categories={categories} catBox={boxes?.catBox} bandBox={boxes?.bandBox} sendBox={boxes?.sendBox} theme={theme} />
         <div className="companion">
           <Cat mood={catMood || phase} />
           <p className={`whisper ${draft.length === 0 ? "whisper-on" : ""}`}>
@@ -1368,6 +1390,20 @@ export default function App() {
         .write-band .send {
           position: absolute; right: 0; top: 50%; margin-top: -20px;
         }
+        .shelf-svg { position: absolute; inset: 0; z-index: 0; }
+        .shelf-svg [data-role="book"] { cursor: pointer; }
+        .write-band .companion { position: relative; z-index: 1; pointer-events: none; }
+        .write-band .send { z-index: 1; }
+        .shelf-a11y {
+          position: absolute; width: 1px; height: 1px; overflow: hidden;
+          clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+        }
+        .shelf-a11y button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+        .shelf-bubble {
+          position: absolute; pointer-events: none; overflow: visible;
+          animation: shelf-bubble-in 400ms ease;
+        }
+        @keyframes shelf-bubble-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
         .companion {
           display: flex; flex-direction: column; align-items: center;
@@ -1382,7 +1418,10 @@ export default function App() {
         .cat-btn {
           background: none; border: 0; padding: 0; cursor: pointer;
           -webkit-tap-highlight-color: transparent;
+          pointer-events: none;
         }
+        .cat-btn svg { pointer-events: none; }
+        .cat-btn .sit-all { pointer-events: visiblePainted; }
         .cat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 12px; }
         .cat { overflow: visible; display: block; }
 
@@ -1636,6 +1675,9 @@ export default function App() {
             catMood={catMood}
             saveDraft={saveDraft}
             draftTimer={draftTimer}
+            entries={state.entries}
+            categories={state.categories}
+            theme={currentShown}
           />
         )}
 
