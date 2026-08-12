@@ -2,7 +2,7 @@
 
 **What it is:** a quiet, local-first journal for days that feel like too much. A small animated cat keeps you company while you write. Nothing you write ever leaves the browser.
 
-**Live:** https://sonetto-journal.vercel.app/
+**Live:** https://sonneto-journal.vercel.app/
 
 ## Stack
 

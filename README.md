@@ -2,7 +2,7 @@
 
 A quiet journal for days that feel like too much. A small cat keeps you company while you write.
 
-**[sonetto-journal.vercel.app](https://sonetto-journal.vercel.app/)**
+**[sonneto-journal.vercel.app](https://sonneto-journal.vercel.app/)**
 
 - Everything you write stays in this browser. Nothing is uploaded anywhere.
 - Clearing your site data erases your entries. Use the Download button on the shelf to keep a backup.
