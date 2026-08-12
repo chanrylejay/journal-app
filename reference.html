@@ -34,18 +34,19 @@
   body {
     font-family: var(--sans);
     color: var(--ink);
-    padding: 56px 64px 72px;
+    padding: 48px 48px 56px;
+    width: 1580px; /* one clean screenshot */
   }
-  header { text-align: center; margin-bottom: 56px; }
+  header { text-align: center; margin-bottom: 44px; }
   header .title { font-family: "Literata", Georgia, serif; font-size: 30px; margin: 0 0 8px; }
   header .sub { color: var(--soft); font-size: 15px; margin: 0; }
-  section { margin-bottom: 72px; }
+  section { margin-bottom: 56px; }
   section h2 {
     font-family: "Literata", Georgia, serif;
-    font-weight: 400; font-size: 20px; margin: 0 0 22px;
+    font-weight: 400; font-size: 20px; margin: 0 0 20px;
   }
   section h2 .note { font-family: var(--sans); font-size: 12px; color: var(--faint); font-weight: 400; margin-left: 12px; }
-  .faces { display: flex; gap: 26px; flex-wrap: wrap; justify-content: center; }
+  .faces { display: flex; gap: 34px; justify-content: center; }
   .face { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .face .name { font-size: 12px; color: var(--soft); letter-spacing: 0.04em; }
   .face .state { font-size: 11px; color: var(--faint); margin-top: -4px; }
@@ -53,11 +54,10 @@
     background: var(--paper);
     border: 1px solid var(--edge);
     border-radius: 16px;
-    padding: 28px 16px 20px;
-    overflow-x: auto;
+    padding: 20px 12px 16px;
   }
   .shelf-wrap svg { display: block; margin: 0 auto; }
-  .shelf-key { display: flex; gap: 18px; justify-content: center; margin-top: 18px; font-size: 12px; color: var(--faint); }
+  .shelf-key { display: flex; gap: 18px; justify-content: center; margin-top: 16px; font-size: 12px; color: var(--faint); }
   .shelf-key .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 </style>
 </head>
@@ -69,24 +69,24 @@
 </header>
 
 <section>
-  <h2>The cat<span class="note">one warm thing on the page</span></h2>
+  <h2>The cat<span class="note">seven faces, one warm thing on the page</span></h2>
   <div class="faces" id="faces"></div>
 </section>
 
 <section>
-  <h2>The month shelf<span class="note">five years in — a book per month, width from what you wrote</span></h2>
+  <h2>The month shelf<span class="note">five years in — the cat keeps it company</span></h2>
   <div class="shelf-wrap" id="shelf"></div>
-  <div class="shelf-key"><span><span class="dot" style="background:#8492A8"></span>a month</span><span><span class="dot" style="background:#AE8B98"></span>a heavy month</span><span><span class="dot" style="background:#8A8DAB"></span>filed by category</span></div>
+  <div class="shelf-key"><span><span class="dot" style="background:#8492A8"></span>a month</span><span><span class="dot" style="background:#9585AB"></span>a heavy month</span><span><span class="dot" style="background:#8A8DAB"></span>filed by category</span></div>
 </section>
 
 <script>
 /* ------------------------------------------------------------------ */
-/*  The cat — one SVG, twelve faces                                    */
+/*  The cat — one SVG, seven main faces                                */
 /* ------------------------------------------------------------------ */
 
 const HEAD_D = "M30 68 C30 44 47 27 79 26 C112 25 130 43 130 67 C130 89 113 106 80 106 C48 107 30 90 30 68 Z";
 
-function eyes(mode, id) {
+function eyes(mode) {
   const L = { cx: 62, cy: 72, rx: 6.6, ry: 8 };
   const R = { cx: 99, cy: 71, rx: 6.2, ry: 7.6 };
   const one = (e) => {
@@ -98,66 +98,69 @@ function eyes(mode, id) {
   return one(L) + one(R);
 }
 
-function catSvg({ eye, poses = {}, zzz = false, id = 0 }) {
+/* the cat's body — reusable inside a <svg> (a face card or embedded in the shelf) */
+function catInner({ eye = "open", poses = {}, zzz = false, id = 0 }) {
   const g = (n) => (poses[n] ? ` transform="${poses[n]}"` : "");
-  return `<svg viewBox="0 0 160 150" width="132" height="124" aria-hidden="true">
-    <defs>
-      <radialGradient id="aura${id}" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="var(--aura)" stop-opacity="var(--aura-op)"/>
-        <stop offset="100%" stop-color="var(--aura)" stop-opacity="0"/>
-      </radialGradient>
-      <radialGradient id="patch${id}" cx="50%" cy="50%" r="50%">
-        <stop offset="48%" stop-color="var(--gray)" stop-opacity="0.95"/>
-        <stop offset="100%" stop-color="var(--gray)" stop-opacity="0"/>
-      </radialGradient>
-      <filter id="soften${id}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>
-      <clipPath id="headClip${id}"><path d="${HEAD_D}"/></clipPath>
-    </defs>
-    <circle cx="80" cy="74" r="56" fill="url(#aura${id})"/>
-    <ellipse cx="79" cy="147" rx="33" ry="3.8" fill="var(--cat-shadow)" opacity="var(--cat-shadow-op)" filter="url(#soften${id})"/>
-    <g transform="rotate(-1.5 80 120)">
-      <g${g("jumper")}>
-        <g${g("sleep")}>
-          <g${g("stretch")}>
-            <path${g("tail")} d="M118 124 C142 130 151 117 144 106" stroke="var(--gray)" stroke-width="10.5" stroke-linecap="round" fill="none"/>
-            <path d="M38 112 C39 97 57 89 81 89 C107 89 122 98 122 113 C122 128 103 137 79 137 C55 137 38 127 38 112 Z" fill="var(--fur)" stroke="var(--out)" stroke-width="2"/>
-            <path d="M61 127 L61 137 C61 143.5 71 143.5 71 137 L71 127 Z" fill="var(--fur)"/>
-            <path d="M61 127 L61 137 C61 143.5 71 143.5 71 137 L71 127" fill="none" stroke="var(--out)" stroke-width="2" stroke-linecap="round"/>
-            <path d="M90 128 L90 138.5 C90 144.5 99.5 144.5 99.5 138.5 L99.5 128 Z" fill="var(--fur)"/>
-            <path d="M90 128 L90 138.5 C90 144.5 99.5 144.5 99.5 138.5 L99.5 128" fill="none" stroke="var(--out)" stroke-width="1.9" stroke-linecap="round"/>
-            <g${g("head")}>
-              <g stroke="var(--out)" stroke-width="2.1" stroke-linejoin="round">
-                <path${g("earl")} d="M42 50 C34 36 33 21 40 18 C47 15 61 26 68 34 Z" fill="var(--fur)"/>
-                <path d="M47 46 C42 36 42 28 46 27 C51 26 58 33 62 38 Z" fill="var(--gray)" stroke="none"/>
-                <g${g("earr")}>
-                  <path d="M120 52 C130 37 132 18 123 14 C113 10 96 25 89 34 Z" fill="var(--fur)"/>
-                  <path d="M115 47 C121 36 122 27 117 26 C111 25 102 33 97 39 Z" fill="var(--gray)" stroke="none"/>
-                </g>
+  return `<defs>
+    <radialGradient id="aura${id}" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="var(--aura)" stop-opacity="var(--aura-op)"/>
+      <stop offset="100%" stop-color="var(--aura)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="patch${id}" cx="50%" cy="50%" r="50%">
+      <stop offset="48%" stop-color="var(--gray)" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="var(--gray)" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soften${id}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>
+    <clipPath id="headClip${id}"><path d="${HEAD_D}"/></clipPath>
+  </defs>
+  <circle cx="80" cy="74" r="56" fill="url(#aura${id})"/>
+  <ellipse cx="79" cy="147" rx="33" ry="3.8" fill="var(--cat-shadow)" opacity="var(--cat-shadow-op)" filter="url(#soften${id})"/>
+  <g transform="rotate(-1.5 80 120)">
+    <g${g("jumper")}>
+      <g${g("sleep")}>
+        <g${g("stretch")}>
+          <path${g("tail")} d="M118 124 C142 130 151 117 144 106" stroke="var(--gray)" stroke-width="10.5" stroke-linecap="round" fill="none"/>
+          <path d="M38 112 C39 97 57 89 81 89 C107 89 122 98 122 113 C122 128 103 137 79 137 C55 137 38 127 38 112 Z" fill="var(--fur)" stroke="var(--out)" stroke-width="2"/>
+          <path d="M61 127 L61 137 C61 143.5 71 143.5 71 137 L71 127 Z" fill="var(--fur)"/>
+          <path d="M61 127 L61 137 C61 143.5 71 143.5 71 137 L71 127" fill="none" stroke="var(--out)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M90 128 L90 138.5 C90 144.5 99.5 144.5 99.5 138.5 L99.5 128 Z" fill="var(--fur)"/>
+          <path d="M90 128 L90 138.5 C90 144.5 99.5 144.5 99.5 138.5 L99.5 128" fill="none" stroke="var(--out)" stroke-width="1.9" stroke-linecap="round"/>
+          <g${g("head")}>
+            <g stroke="var(--out)" stroke-width="2.1" stroke-linejoin="round">
+              <path${g("earl")} d="M42 50 C34 36 33 21 40 18 C47 15 61 26 68 34 Z" fill="var(--fur)"/>
+              <path d="M47 46 C42 36 42 28 46 27 C51 26 58 33 62 38 Z" fill="var(--gray)" stroke="none"/>
+              <g${g("earr")}>
+                <path d="M120 52 C130 37 132 18 123 14 C113 10 96 25 89 34 Z" fill="var(--fur)"/>
+                <path d="M115 47 C121 36 122 27 117 26 C111 25 102 33 97 39 Z" fill="var(--gray)" stroke="none"/>
               </g>
-              <path d="${HEAD_D}" fill="var(--fur)" stroke="var(--out)" stroke-width="2.2"/>
-              <g clip-path="url(#headClip${id})">
-                <circle cx="24" cy="70" r="30" fill="url(#patch${id})"/>
-                <circle cx="137" cy="70" r="30" fill="url(#patch${id})"/>
-              </g>
-              <g stroke="var(--gray-d)" stroke-width="2.1" stroke-linecap="round" opacity="0.8" fill="none">
-                <path d="M36 70 C41 72 45 73.5 49 75"/>
-                <path d="M34 83 C39 84 44 84.5 48 85"/>
-                <path d="M37 96 C42 95 46 94 49 93"/>
-                <path d="M124 71 C119 73 115 74.5 112 76"/>
-                <path d="M126 84 C121 85 117 85.5 113 86"/>
-              </g>
-              <ellipse cx="48" cy="86" rx="11" ry="6.5" fill="var(--blush)" opacity="0.55"/>
-              <ellipse cx="110" cy="85" rx="10" ry="7" fill="var(--blush)" opacity="0.55"/>
-              <g${g("eyes")}>${eyes(eye, id)}</g>
-              <path d="M76 79 L82 79.5 L79 83 Z" fill="var(--gray-d)"/>
-              <path d="M79 83.5 q-4.5 5 -8.5 0.6 M79 83.5 q4.5 5 8.5 0.4" stroke="var(--face)" stroke-width="2" fill="none" stroke-linecap="round"/>
-              ${zzz ? `<g fill="var(--faint)" font-size="12" font-family="serif"><text x="122" y="32">z</text><text x="133" y="22">z</text></g>` : ""}
             </g>
+            <path d="${HEAD_D}" fill="var(--fur)" stroke="var(--out)" stroke-width="2.2"/>
+            <g clip-path="url(#headClip${id})">
+              <circle cx="24" cy="70" r="30" fill="url(#patch${id})"/>
+              <circle cx="137" cy="70" r="30" fill="url(#patch${id})"/>
+            </g>
+            <g stroke="var(--gray-d)" stroke-width="2.1" stroke-linecap="round" opacity="0.8" fill="none">
+              <path d="M36 70 C41 72 45 73.5 49 75"/>
+              <path d="M34 83 C39 84 44 84.5 48 85"/>
+              <path d="M37 96 C42 95 46 94 49 93"/>
+              <path d="M124 71 C119 73 115 74.5 112 76"/>
+              <path d="M126 84 C121 85 117 85.5 113 86"/>
+            </g>
+            <ellipse cx="48" cy="86" rx="11" ry="6.5" fill="var(--blush)" opacity="0.55"/>
+            <ellipse cx="110" cy="85" rx="10" ry="7" fill="var(--blush)" opacity="0.55"/>
+            <g${g("eyes")}>${eyes(eye)}</g>
+            <path d="M76 79 L82 79.5 L79 83 Z" fill="var(--gray-d)"/>
+            <path d="M79 83.5 q-4.5 5 -8.5 0.6 M79 83.5 q4.5 5 8.5 0.4" stroke="var(--face)" stroke-width="2" fill="none" stroke-linecap="round"/>
+            ${zzz ? `<g fill="var(--faint)" font-size="12" font-family="serif"><text x="122" y="32">z</text><text x="133" y="22">z</text></g>` : ""}
           </g>
         </g>
       </g>
     </g>
-  </svg>`;
+  </g>`;
+}
+
+function catSvg(opts) {
+  return `<svg viewBox="0 0 160 150" width="132" height="124" aria-hidden="true">${catInner(opts)}</svg>`;
 }
 
 const FACES = [
@@ -167,26 +170,19 @@ const FACES = [
   { name: "pleased", note: "something kept", eye: "beam" },
   { name: "sleeping", note: "a long entry", eye: "shut", poses: { sleep: "translate(0 7) scale(1.07 0.88)" }, zzz: true },
   { name: "jumping", note: "petted", eye: "open", poses: { jumper: "translate(0 -24) scale(0.96 1.05)" } },
-  { name: "long-blink", note: "slow blink", eye: "shut" },
-  { name: "ear-twitch", note: "a sound", eye: "open", poses: { earl: "rotate(-9 45 34)" } },
-  { name: "tail-flick", note: "a thought", eye: "open", poses: { tail: "rotate(-26 118 124)" } },
-  { name: "look-away", note: "elsewhere", eye: "open", poses: { eyes: "translate(-2.5 0)" } },
   { name: "tilt", note: "curious", eye: "open", poses: { head: "rotate(-7 80 104)" } },
-  { name: "stretch", note: "mid-write", eye: "open", poses: { stretch: "scale(1.04 0.95) translate(0 2)" } },
 ];
 
-const facesEl = document.getElementById("faces");
-facesEl.innerHTML = FACES.map((f, i) =>
+document.getElementById("faces").innerHTML = FACES.map((f, i) =>
   `<div class="face">${catSvg({ eye: f.eye, poses: f.poses, zzz: f.zzz, id: i })}
      <div class="name">${f.name}</div><div class="state">${f.note}</div></div>`
 ).join("");
 
 /* ------------------------------------------------------------------ */
-/*  The shelf — five years, filled                                     */
+/*  The shelf — five years, filled, the cat sitting in the middle      */
 /* ------------------------------------------------------------------ */
 
 const LIGHT = ["#8492A8", "#AE8B98", "#8CA08E", "#9585AB", "#7A929C", "#B2949B", "#829E96", "#8A8DAB", "#A0808F"];
-const MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
 function fnv(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return x >>> 0; }
 function volumesFor(count) {
   const vols = []; let left = count; let g = 0;
@@ -194,44 +190,39 @@ function volumesFor(count) {
   return vols;
 }
 
-/* five years of months, oldest first. Counts feel like a real life:
-   a quiet month is 2-8, a busy one 12-35, a few over 50 (spawn diaries),
-   and the occasional empty month is a gap. */
 function fiveYears() {
   const out = [];
   const now = new Date();
   const endGi = now.getFullYear() * 12 + now.getMonth();
-  const startGi = endGi - 60; /* 5 years */
+  const startGi = endGi - 60;
   for (let gi = startGi; gi <= endGi; gi++) {
     const year = Math.floor(gi / 12), month = gi % 12;
     const key = `${year}-${month}`;
     const r = fnv(key + "n") % 100;
     let count;
-    if (r < 4) count = 0;                 /* an empty month — a gap */
-    else if (r < 20) count = 2 + (r % 6); /* quiet */
-    else if (r < 78) count = 8 + (r % 26);/* normal */
-    else if (r < 94) count = 42 + (r % 12);/* heavy, near the diary threshold */
-    else count = 56 + (r % 22);            /* over 50 — mother + diary */
-    out.push({ key, gi, year, month, count, label: year === now.getFullYear() ? MONTHS[month] : `${MONTHS[month]} ${year}`, colorIdx: ((gi % 9) + 9) % 9, spineH: 56 + (fnv(key + "h") % 24), lean: 2 + (fnv(key + "t") % 3) });
+    if (r < 4) count = 0;
+    else if (r < 20) count = 2 + (r % 6);
+    else if (r < 78) count = 8 + (r % 26);
+    else if (r < 94) count = 42 + (r % 12);
+    else count = 56 + (r % 22);
+    out.push({ key, gi, year, month, count, colorIdx: ((gi % 9) + 9) % 9, spineH: 56 + (fnv(key + "h") % 24), lean: 2 + (fnv(key + "t") % 3) });
   }
   return out;
 }
 
 function buildShelf() {
   const months = fiveYears();
-  const catX = 300;          /* a gap where the cat sits */
-  const clearZone = 40;
+  const catW = 120;                 /* the cat sits here, feet on the shelf line */
+  const catX = 300;
+  const clearZone = 46;
   const tuckCap = 29.5;
-  const rightCap = 1580;     /* the sheet is wide; the send cap is off to the right */
+  const rightCap = 1520;
   const books = [];
   for (const m of months) {
     if (m.count <= 0.001) continue;
     for (const v of volumesFor(m.count)) books.push({ month: m, v });
   }
-  const bookWidth = (b) => {
-    const base = b.v.kind === "mother" ? 13 + 20 * (1 - Math.exp(-b.v.e / 18)) : 9 + 12 * (1 - Math.exp(-b.v.e / 18));
-    return base * b.v.f;
-  };
+  const bookWidth = (b) => { const base = b.v.kind === "mother" ? 13 + 20 * (1 - Math.exp(-b.v.e / 18)) : 9 + 12 * (1 - Math.exp(-b.v.e / 18)); return base * b.v.f; };
   const bookHeight = (b) => (b.v.kind === "mother" ? b.month.spineH : b.month.spineH * 0.66) * b.v.f;
   const gapBetween = (a, b) => { const d = b.month.gi - a.month.gi; return d === 0 ? 1.8 : d === 1 ? 4.5 : 13; };
   const tuck = (w) => Math.min(tuckCap, Math.max(0, w - 42) * 0.26);
@@ -274,12 +265,13 @@ function buildShelf() {
   const rightBookendX = rightBooks.length ? rightBooks[rightBooks.length - 1].x + rightBooks[rightBooks.length - 1].w + 2 : null;
   const extentL = leftBookendX != null ? leftBookendX - 4.2 : placed[0].x;
   const extentR = rightBookendX != null ? rightBookendX + 4.2 : placed[placed.length - 1].x + placed[placed.length - 1].w;
+  const off = 20 - extentL;
   const W = extentR - extentL + 40;
 
   const parts = [];
   for (const b of placed) {
     const lean = b.x < catX ? b.month.lean : -b.month.lean;
-    parts.push(`<g transform="translate(${b.x + 20 - extentL + b.w / 2}, ${baseline}) rotate(${lean})" opacity="0.8">
+    parts.push(`<g transform="translate(${b.x + off + b.w / 2}, ${baseline}) rotate(${lean})" opacity="0.8">
       <rect x="${-b.w / 2}" y="${-b.h}" width="${b.w}" height="${b.h}" rx="1" fill="${LIGHT[b.month.colorIdx]}"/>
       ${b.w > 4 ? `<rect x="${b.w / 2 - 2.2}" y="${-b.h}" width="2.2" height="${b.h}" fill="#fff" opacity="0.14"/>` : ""}
       ${b.w > 14 && b.h > 22 ? `<g stroke="#fff" stroke-width="1" opacity="0.6"><line x1="${-b.w / 2 + 3}" y1="${-b.h * 0.6}" x2="${b.w / 2 - 4}" y2="${-b.h * 0.6}"/><line x1="${-b.w / 2 + 3}" y1="${-b.h * 0.6 + 6}" x2="${b.w / 2 - 4}" y2="${-b.h * 0.6 + 6}"/></g>` : ""}
@@ -287,9 +279,14 @@ function buildShelf() {
       <line x1="${-b.w / 2}" y1="-5.5" x2="${b.w / 2}" y2="-5.5" stroke="#fff" opacity="0.16"/>
     </g>`);
   }
-  if (leftBookendX != null) parts.push(`<g transform="translate(${leftBookendX + 20 - extentL}, ${baseline})"><rect x="0" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-4.2" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
-  if (rightBookendX != null) parts.push(`<g transform="translate(${rightBookendX + 20 - extentL}, ${baseline})"><rect x="-4.6" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-8.8" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
-  parts.push(`<line x1="${(leftBookendX != null ? leftBookendX - 4.2 : extentL) + 20 - extentL}" x2="${(rightBookendX != null ? rightBookendX + 4.2 : extentR) + 20 - extentL}" y1="${baseline + 0.5}" y2="${baseline + 0.5}" stroke="var(--out)" stroke-width="1" opacity="0.24"/>`);
+  if (leftBookendX != null) parts.push(`<g transform="translate(${leftBookendX + off}, ${baseline})"><rect x="0" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-4.2" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
+  if (rightBookendX != null) parts.push(`<g transform="translate(${rightBookendX + off}, ${baseline})"><rect x="-4.6" y="-42" width="4.6" height="42" rx="1" fill="var(--out)" opacity="0.55"/><rect x="-8.8" y="-3" width="13" height="3" rx="1" fill="var(--out)" opacity="0.55"/></g>`);
+  parts.push(`<line x1="${(leftBookendX != null ? leftBookendX - 4.2 : extentL) + off}" x2="${(rightBookendX != null ? rightBookendX + 4.2 : extentR) + off}" y1="${baseline + 0.5}" y2="${baseline + 0.5}" stroke="var(--out)" stroke-width="1" opacity="0.24"/>`);
+
+  /* the cat, sitting in the gap, feet on the shelf line */
+  const hcat = catW * (150 / 160);
+  const catY = baseline - (147 / 150) * hcat;
+  parts.push(`<svg x="${catX + off - catW / 2}" y="${catY}" width="${catW}" height="${hcat}" viewBox="0 0 160 150" aria-hidden="true">${catInner({ eye: "open", id: 100 })}</svg>`);
 
   return `<svg width="${W}" height="${baseline + 24}" viewBox="0 0 ${W} ${baseline + 24}" aria-hidden="true">${parts.join("")}</svg>`;
 }
